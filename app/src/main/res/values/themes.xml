@@ -1,0 +1,10 @@
+<resources>
+
+    <style name="Theme.CSPlayer" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@android:color/holo_blue_light</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorSecondary">@android:color/holo_green_light</item>
+        <item name="colorOnSecondary">@android:color/black</item>
+    </style>
+</resources>

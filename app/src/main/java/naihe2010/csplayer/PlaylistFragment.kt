@@ -1,0 +1,224 @@
+package naihe2010.csplayer
+
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.media.MediaMetadataRetriever
+import android.os.Bundle
+import android.os.IBinder
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import java.io.File
+import java.util.concurrent.TimeUnit
+
+data class PlaylistItem(
+    val filePath: String,
+    val displayName: String,
+    val startTimeMs: Long = 0L,
+    val endTimeMs: Long = 0L
+)
+
+class PlaylistFragment : Fragment() {
+
+    private lateinit var playlistRecyclerView: RecyclerView
+    private lateinit var tvEmptyPlaylist: TextView
+    private lateinit var playerService: PlayerService
+    private var playerBound = false
+    private lateinit var directoryPath: String
+    private lateinit var playerConfig: PlayerConfig
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            val binder = service as PlayerService.PlayerBinder
+            playerService = binder.getService()
+            playerBound = true
+            playFirstFile()
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            playerBound = false
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        arguments?.let {
+            directoryPath = it.getString("directoryPath") ?: return
+        }
+        playerConfig = PlayerConfig.load(requireContext())
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        val view = inflater.inflate(R.layout.activity_playlist, container, false)
+
+        playlistRecyclerView = view.findViewById(R.id.playlistRecyclerView)
+        tvEmptyPlaylist = view.findViewById(R.id.tvEmptyPlaylist)
+        playlistRecyclerView.layoutManager = LinearLayoutManager(context)
+
+        val playlistItems = generatePlaylistItems(directoryPath)
+        if (playlistItems.isEmpty()) {
+            tvEmptyPlaylist.visibility = View.VISIBLE
+            playlistRecyclerView.visibility = View.GONE
+        } else {
+            tvEmptyPlaylist.visibility = View.GONE
+            playlistRecyclerView.visibility = View.VISIBLE
+            val adapter = PlaylistAdapter(playlistItems) { item ->
+                if (playerBound) {
+                    playerService.play(item.filePath, item.startTimeMs, item.endTimeMs)
+                }
+            }
+            playlistRecyclerView.adapter = adapter
+        }
+
+        return view
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Intent(requireContext(), PlayerService::class.java).also { intent ->
+            requireContext().bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        requireContext().unbindService(connection)
+        playerBound = false
+    }
+
+    private fun generatePlaylistItems(directoryPath: String): List<PlaylistItem> {
+        val playlist = mutableListOf<PlaylistItem>()
+        val directory = File(directoryPath)
+        Log.d("PlaylistFragment", "Processing directory: $directoryPath")
+        if (!directory.exists() || !directory.isDirectory) {
+            Log.e(
+                "PlaylistFragment",
+                "Directory does not exist or is not a directory: $directoryPath"
+            )
+            return playlist
+        }
+        val files = directory.listFiles()?.filter { it.isFile } ?: emptyList()
+        Log.d("PlaylistFragment", "Found ${files.size} files in directory.")
+
+        for (file in files) {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(file.absolutePath)
+                val durationStr =
+                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                val durationMs = durationStr?.toLong() ?: 0L
+                Log.d("PlaylistFragment", "File: ${file.name}, Duration: $durationMs ms")
+
+                if (durationMs == 0L) {
+                    Log.w(
+                        "PlaylistFragment",
+                        "Skipping file with 0 duration or unretrievable duration: ${file.name}"
+                    )
+                    continue
+                }
+
+                if (playerConfig.isLoopEnabled && playerConfig.loopType == LoopType.TIME && playerConfig.loopInterval > 0) {
+                    val intervalMs = TimeUnit.MINUTES.toMillis(playerConfig.loopInterval.toLong())
+                    var currentStart = 0L
+                    while (currentStart < durationMs) {
+                        val currentEnd = (currentStart + intervalMs).coerceAtMost(durationMs)
+                        val displayName =
+                            "${file.nameWithoutExtension} [${formatMillis(currentStart)}-${
+                                formatMillis(
+                                    currentEnd
+                                )
+                            }]"
+                        playlist.add(
+                            PlaylistItem(
+                                file.absolutePath,
+                                displayName,
+                                currentStart,
+                                currentEnd
+                            )
+                        )
+                        currentStart =
+                            currentEnd + 1 // Move to the next millisecond after the current segment
+                    }
+                } else {
+                    playlist.add(
+                        PlaylistItem(
+                            file.absolutePath,
+                            file.nameWithoutExtension,
+                            0L,
+                            durationMs
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("PlaylistFragment", "Error processing file: ${file.name}", e)
+            } finally {
+                retriever.release()
+            }
+        }
+        Log.d("PlaylistFragment", "Generated ${playlist.size} playlist items.")
+        return playlist
+    }
+
+    private fun formatMillis(millis: Long): String {
+        return String.format(
+            "%02d:%02d",
+            TimeUnit.MILLISECONDS.toMinutes(millis),
+            TimeUnit.MILLISECONDS.toSeconds(millis) -
+                    TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(millis))
+        )
+    }
+
+    private fun playFirstFile() {
+        val playlistItems = generatePlaylistItems(directoryPath)
+        if (playlistItems.isNotEmpty() && playerBound) {
+            val firstItem = playlistItems[0]
+            playerService.play(firstItem.filePath, firstItem.startTimeMs, firstItem.endTimeMs)
+        } else if (playerBound) {
+            // If playlist is empty, stop playback if anything was playing
+            playerService.stopPlayback() // Assuming you'll add a stopPlayback method to PlayerService
+        }
+    }
+
+    class PlaylistAdapter(
+        private val items: List<PlaylistItem>,
+        private val onItemClick: (PlaylistItem) -> Unit
+    ) :
+        RecyclerView.Adapter<PlaylistAdapter.ViewHolder>() {
+
+        class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val fileNameTextView: TextView = view.findViewById(R.id.fileNameTextView)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_playlist_file, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val item = items[position]
+            holder.fileNameTextView.text = item.displayName
+            holder.itemView.setOnClickListener { onItemClick(item) }
+        }
+
+        override fun getItemCount() = items.size
+    }
+
+    companion object {
+        fun newInstance(directoryPath: String) = PlaylistFragment().apply {
+            arguments = Bundle().apply {
+                putString("directoryPath", directoryPath)
+            }
+        }
+    }
+}
