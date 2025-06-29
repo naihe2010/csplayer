@@ -2,13 +2,16 @@ package naihe2010.csplayer
 
 import android.Manifest
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
 import android.widget.TextView
@@ -19,11 +22,31 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.media3.common.C
+
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.slider.Slider
+
+
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
+
+    private var playerService: PlayerService? = null
+    private var isBound = false
+
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            val binder = service as PlayerService.PlayerBinder
+            playerService = binder.getService()
+            isBound = true
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            isBound = false
+        }
+    }
+
 
     private lateinit var btnPlayPause: MaterialButton
     private lateinit var btnRewind: MaterialButton
@@ -75,6 +98,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         checkAndRequestPermissions()
+
+        Intent(this, PlayerService::class.java).also { intent ->
+            startService(intent)
+            bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        }
     }
 
     override fun onResume() {
@@ -86,6 +114,14 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         LocalBroadcastManager.getInstance(this).unregisterReceiver(playerStateReceiver)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isBound) {
+            unbindService(connection)
+            isBound = false
+        }
     }
 
     private fun setupViews() {
@@ -103,6 +139,9 @@ class MainActivity : AppCompatActivity() {
         btnRewind.setOnClickListener { sendControlBroadcast(PlayerService.ACTION_REWIND) }
         btnForward.setOnClickListener { sendControlBroadcast(PlayerService.ACTION_FORWARD) }
 
+        findViewById<MaterialButton>(R.id.btnHome).setOnClickListener {
+            navigateToFragment(HomeFragment())
+        }
         findViewById<MaterialButton>(R.id.btnDirectory).setOnClickListener {
             navigateToFragment(DirectoryFragment())
         }
@@ -110,6 +149,11 @@ class MainActivity : AppCompatActivity() {
             navigateToFragment(SettingFragment())
         }
         findViewById<MaterialButton>(R.id.btnExit).setOnClickListener {
+            if (isBound) {
+                playerService?.stopService()
+                unbindService(connection)
+                isBound = false
+            }
             finishAffinity()
         }
     }
@@ -149,6 +193,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun navigateToPlaylist(directoryPath: String) {
+        val playerConfig = PlayerConfig.getInstance(this)
+        playerConfig.updateCurrentDirectory(directoryPath).save(this)
         navigateToFragment(PlaylistFragment.newInstance(directoryPath))
     }
 

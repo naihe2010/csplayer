@@ -18,6 +18,13 @@
             android:layout_height="?attr/actionBarSize">
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnHome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:text="首页" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDirectory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

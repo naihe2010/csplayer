@@ -20,6 +20,7 @@ class PlayerService : Service() {
     private lateinit var player: ExoPlayer
     private val binder = PlayerBinder()
     private val handler = Handler(Looper.getMainLooper())
+    private lateinit var playerConfig: PlayerConfig
 
     companion object {
         const val ACTION_STATE_CHANGED = "naihe2010.csplayer.ACTION_STATE_CHANGED"
@@ -44,6 +45,7 @@ class PlayerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        playerConfig = PlayerConfig.getInstance(this)
         player = ExoPlayer.Builder(this).build()
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -75,7 +77,13 @@ class PlayerService : Service() {
     override fun onDestroy() {
         player.release()
         handler.removeCallbacks(progressUpdateRunnable)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(controlReceiver)
         super.onDestroy()
+    }
+
+    fun stopService() {
+        stopForeground(true)
+        stopSelf()
     }
 
     inner class PlayerBinder : Binder() {
@@ -84,7 +92,17 @@ class PlayerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder = binder
 
-    fun play(url: String, startTimeMs: Long = 0L, endTimeMs: Long = C.TIME_UNSET) {
+    fun play(
+        directory: String,
+        file: String,
+        url: String,
+        startTimeMs: Long = 0L,
+        endTimeMs: Long = C.TIME_UNSET
+    ) {
+        playerConfig = playerConfig.updateCurrentDirectory(directory)
+        playerConfig = playerConfig.updateCurrentFile(file)
+        playerConfig.save(this@PlayerService)
+
         val mediaItem = MediaItem.Builder()
             .setUri(url)
             .setClippingConfiguration(
@@ -117,12 +135,6 @@ class PlayerService : Service() {
         player.seekBack()
     }
 
-    fun stopPlayback() {
-        player.stop()
-        player.clearMediaItems()
-        sendStateBroadcast() // Send an update to reflect stopped state
-    }
-
     private fun updateNotification() {
         val notification: Notification = MediaNotificationManager(this, player).buildNotification()
         startForeground(1, notification)
@@ -142,6 +154,7 @@ class PlayerService : Service() {
     private val progressUpdateRunnable = object : Runnable {
         override fun run() {
             if (player.isPlaying) {
+                playerConfig = playerConfig.updateCurrentPosition(player.currentPosition)
                 sendStateBroadcast()
                 handler.postDelayed(this, 1000)
             }

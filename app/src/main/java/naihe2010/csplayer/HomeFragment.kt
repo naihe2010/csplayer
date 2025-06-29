@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -11,9 +12,14 @@ import java.io.File
 
 class HomeFragment : Fragment() {
 
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var adapter: DirectoryCardAdapter
-    private var directories: MutableList<String> = mutableListOf()
+    private lateinit var recyclerAllDirectories: RecyclerView
+    private lateinit var recyclerNowPlaying: RecyclerView
+    private lateinit var tvNowPlayingTitle: TextView
+    private lateinit var tvAllDirectoriesTitle: TextView
+
+    private lateinit var allDirectoriesAdapter: DirectoryCardAdapter
+    private lateinit var nowPlayingAdapter: DirectoryCardAdapter
+
     private lateinit var playerConfig: PlayerConfig
 
     override fun onCreateView(
@@ -22,34 +28,58 @@ class HomeFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
 
-        playerConfig = PlayerConfig.load(requireContext())
-        directories = playerConfig.directories.toMutableList()
+        playerConfig = PlayerConfig.getInstance(requireContext())
 
-        val displayDirectories = generateDisplayDirectories(directories)
-        adapter = DirectoryCardAdapter(displayDirectories) { directoryPath ->
-            (activity as? MainActivity)?.navigateToPlaylist(directoryPath)
-        }
-        recyclerView = view.findViewById(R.id.recyclerDirectories)
-        recyclerView.layoutManager = LinearLayoutManager(context)
-        recyclerView.adapter = adapter
+        recyclerAllDirectories = view.findViewById(R.id.recyclerDirectories)
+        recyclerNowPlaying = view.findViewById(R.id.recyclerNowPlaying)
+        tvNowPlayingTitle = view.findViewById(R.id.tvNowPlayingTitle)
+        tvAllDirectoriesTitle = view.findViewById(R.id.tvAllDirectoriesTitle)
+
+        recyclerAllDirectories.layoutManager = LinearLayoutManager(context)
+        recyclerNowPlaying.layoutManager = LinearLayoutManager(context)
 
         return view
     }
 
     override fun onResume() {
         super.onResume()
-        playerConfig = PlayerConfig.load(requireContext())
-        val newDirs = playerConfig.directories.toList()
-        directories.clear()
-        directories.addAll(newDirs)
-        val displayDirectories = generateDisplayDirectories(directories)
-        if (::adapter.isInitialized) {
-            adapter = DirectoryCardAdapter(displayDirectories) { directoryPath ->
-                (activity as? MainActivity)?.navigateToPlaylist(directoryPath)
+        playerConfig = PlayerConfig.getInstance(requireContext())
+        updateDirectoryDisplay()
+    }
+
+    private fun updateDirectoryDisplay() {
+        val allDirectories = playerConfig.directories.toList()
+        val currentPlayingDirectoryPath = playerConfig.currentDirectory
+
+        val nowPlayingDirectory = allDirectories.find { it == currentPlayingDirectoryPath }
+        val otherDirectories = allDirectories.filter { it != currentPlayingDirectoryPath }
+
+        // Update "Now Playing" section
+        if (nowPlayingDirectory != null) {
+            tvNowPlayingTitle.visibility = View.VISIBLE
+            recyclerNowPlaying.visibility = View.VISIBLE
+            val displayNowPlaying = generateDisplayDirectories(listOf(nowPlayingDirectory))
+            nowPlayingAdapter = DirectoryCardAdapter(
+                displayNowPlaying,
+                currentPlayingDirectoryPath
+            ) { displayDirectory ->
+                (activity as? MainActivity)?.navigateToPlaylist(displayDirectory.path)
             }
-            recyclerView.adapter = adapter
-            adapter.notifyDataSetChanged()
+            recyclerNowPlaying.adapter = nowPlayingAdapter
+        } else {
+            tvNowPlayingTitle.visibility = View.GONE
+            recyclerNowPlaying.visibility = View.GONE
         }
+
+        // Update "All Directories" section
+        val displayOtherDirectories = generateDisplayDirectories(otherDirectories)
+        allDirectoriesAdapter = DirectoryCardAdapter(
+            displayOtherDirectories,
+            currentPlayingDirectoryPath
+        ) { displayDirectory ->
+            (activity as? MainActivity)?.navigateToPlaylist(displayDirectory.path)
+        }
+        recyclerAllDirectories.adapter = allDirectoriesAdapter
     }
 
     private fun generateDisplayDirectories(paths: List<String>): List<DisplayDirectory> {

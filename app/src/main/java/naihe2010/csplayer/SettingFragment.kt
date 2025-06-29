@@ -37,7 +37,7 @@ class SettingFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_setting, container, false)
 
-        playerConfig = PlayerConfig.load(requireContext())
+        playerConfig = PlayerConfig.getInstance(requireContext())
 
         findViews(view)
         setupListeners()

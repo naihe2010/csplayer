@@ -20,6 +20,7 @@ class DirectoryFragment : Fragment() {
     private val keyDirectories = "directories"
     private lateinit var directories: MutableList<String>
     private lateinit var adapter: DirectoryAdapter
+    private lateinit var playerConfig: PlayerConfig
 
     // 注册目录选择结果回调
     private val selectDirectoryLauncher =
@@ -28,6 +29,7 @@ class DirectoryFragment : Fragment() {
                 val directoryPath = getRealPathFromUri(it)
                 if (!directoryPath.isNullOrEmpty()) {
                     directories.add(directoryPath)
+                    playerConfig.updateDirectories(directories.toSet())
                     adapter.notifyItemInserted(directories.size - 1)
                     saveDirectories()
                 }
@@ -40,7 +42,8 @@ class DirectoryFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_directory, container, false)
 
-        directories = loadDirectories().toMutableList()
+        playerConfig = PlayerConfig.getInstance(requireContext())
+        directories = playerConfig.directories.toMutableList()
         val recyclerView = view.findViewById<RecyclerView>(R.id.recyclerView)
         val fabAdd = view.findViewById<FloatingActionButton>(R.id.fabAdd)
         adapter = DirectoryAdapter(directories) { position ->
@@ -53,6 +56,20 @@ class DirectoryFragment : Fragment() {
             selectDirectoryLauncher.launch(null)
         }
         return view
+    }
+
+    override fun onResume() {
+        super.onResume()
+        loadAndDisplayDirectories()
+    }
+
+    private fun loadAndDisplayDirectories() {
+        val directories = loadDirectories().toMutableList()
+
+        adapter = DirectoryAdapter(directories) { position ->
+            showDeleteDialog(position)
+        }
+        (view?.findViewById<RecyclerView>(R.id.recyclerView))?.adapter = adapter
     }
 
     // 将 Uri 转换为实际路径
@@ -74,6 +91,7 @@ class DirectoryFragment : Fragment() {
             .setMessage("确定要删除该目录吗？")
             .setPositiveButton("删除") { _, _ ->
                 directories.removeAt(position)
+                playerConfig.updateDirectories(directories.toSet())
                 adapter.notifyItemRemoved(position)
                 saveDirectories()
             }
@@ -102,8 +120,16 @@ class DirectoryFragment : Fragment() {
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val directoryPath = items[position]
             holder.itemView.findViewById<android.widget.TextView>(android.R.id.text1).text =
-                items[position]
+                directoryPath
+
+            holder.itemView.setBackgroundResource(android.R.color.transparent)
+
+            holder.itemView.setOnClickListener {
+                (holder.itemView.context as? MainActivity)?.navigateToPlaylist(directoryPath)
+            }
+
             holder.itemView.setOnLongClickListener {
                 onItemLongClick(position)
                 true

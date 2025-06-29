@@ -2,33 +2,45 @@ package naihe2010.csplayer
 
 import android.content.Context
 
-data class PlayerConfig(
-    val directories: Set<String> = emptySet(),
-    val currentDirectory: String? = null,
-    val currentFile: String? = null,
-    val playbackRate: Float = 1.0f,
-    val playbackOrder: PlaybackOrder = PlaybackOrder.SEQUENTIAL,
-    val isLoopEnabled: Boolean = false,
-    val loopType: LoopType = LoopType.FILE,
-    val loopInterval: Int = 0 // 循环间隔，对于时间循环是分钟数，对于文件循环是文件数
+class PlayerConfig private constructor(
+    var directories: Set<String>,
+    var currentDirectory: String?,
+    var currentFile: String?,
+    var currentPosition: Long,
+    var playbackRate: Float,
+    var playbackOrder: PlaybackOrder,
+    var isLoopEnabled: Boolean,
+    var loopType: LoopType,
+    var loopInterval: Int
 ) {
     companion object {
+        @Volatile
+        private var INSTANCE: PlayerConfig? = null
+
         private const val PREF_NAME = "csplayer_prefs"
         private const val KEY_DIRECTORIES = "directories"
         private const val KEY_CURRENT_DIRECTORY = "current_directory"
         private const val KEY_CURRENT_FILE = "current_file"
+        private const val KEY_CURRENT_POSITION = "current_position"
         private const val KEY_PLAYBACK_RATE = "playback_rate"
         private const val KEY_PLAYBACK_ORDER = "playback_order"
         private const val KEY_IS_LOOP_ENABLED = "is_loop_enabled"
         private const val KEY_LOOP_TYPE = "loop_type"
         private const val KEY_LOOP_INTERVAL = "loop_interval"
 
-        fun load(context: Context): PlayerConfig {
+        fun getInstance(context: Context): PlayerConfig {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: load(context).also { INSTANCE = it }
+            }
+        }
+
+        private fun load(context: Context): PlayerConfig {
             val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             return PlayerConfig(
                 directories = prefs.getStringSet(KEY_DIRECTORIES, emptySet()) ?: emptySet(),
                 currentDirectory = prefs.getString(KEY_CURRENT_DIRECTORY, null),
                 currentFile = prefs.getString(KEY_CURRENT_FILE, null),
+                currentPosition = prefs.getLong(KEY_CURRENT_POSITION, 0L),
                 playbackRate = prefs.getFloat(KEY_PLAYBACK_RATE, 1.0f),
                 playbackOrder = PlaybackOrder.valueOf(
                     prefs.getString(KEY_PLAYBACK_ORDER, PlaybackOrder.SEQUENTIAL.name)
@@ -49,6 +61,7 @@ data class PlayerConfig(
             putStringSet(KEY_DIRECTORIES, directories)
             putString(KEY_CURRENT_DIRECTORY, currentDirectory)
             putString(KEY_CURRENT_FILE, currentFile)
+            putLong(KEY_CURRENT_POSITION, currentPosition)
             putFloat(KEY_PLAYBACK_RATE, playbackRate)
             putString(KEY_PLAYBACK_ORDER, playbackOrder.name)
             putBoolean(KEY_IS_LOOP_ENABLED, isLoopEnabled)
@@ -58,27 +71,40 @@ data class PlayerConfig(
     }
 
     fun updateDirectories(directories: Set<String>): PlayerConfig {
-        return copy(directories = directories)
+        this.directories = directories
+        return this
     }
 
     fun updateCurrentDirectory(directory: String?): PlayerConfig {
-        return copy(currentDirectory = directory)
+        this.currentDirectory = directory
+        return this
     }
 
     fun updateCurrentFile(file: String?): PlayerConfig {
-        return copy(currentFile = file)
+        this.currentFile = file
+        return this
+    }
+
+    fun updateCurrentPosition(position: Long): PlayerConfig {
+        this.currentPosition = position
+        return this
     }
 
     fun updatePlaybackRate(rate: Float): PlayerConfig {
-        return copy(playbackRate = rate)
+        this.playbackRate = rate
+        return this
     }
 
     fun updatePlaybackOrder(order: PlaybackOrder): PlayerConfig {
-        return copy(playbackOrder = order)
+        this.playbackOrder = order
+        return this
     }
 
     fun updateLoopSettings(enabled: Boolean, type: LoopType, interval: Int): PlayerConfig {
-        return copy(isLoopEnabled = enabled, loopType = type, loopInterval = interval)
+        this.isLoopEnabled = enabled
+        this.loopType = type
+        this.loopInterval = interval
+        return this
     }
 }
 

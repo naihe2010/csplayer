@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="playlist_item_odd">#FFFFFF</color>
+    <color name="playlist_item_even">#F1F1F1</color>
+    <color name="playlist_item_playing">#B3E5FC</color>
+    <color name="directory_card_playing">#E1F5FE</color>
+</resources>

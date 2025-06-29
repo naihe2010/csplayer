@@ -7,8 +7,9 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class DirectoryCardAdapter(
-    private val items: List<DisplayDirectory>,
-    private val onClick: (String) -> Unit
+    private val directories: List<DisplayDirectory>,
+    private val nowPlayingDirectory: String?,
+    private val onDirectoryClick: (DisplayDirectory) -> Unit
 ) : RecyclerView.Adapter<DirectoryCardAdapter.ViewHolder>() {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val card =
@@ -17,16 +18,23 @@ class DirectoryCardAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(items[position], onClick)
+        val directory = directories[position]
+        holder.bind(directory, onDirectoryClick)
+
+        if (directory.path == nowPlayingDirectory) {
+            holder.itemView.setBackgroundResource(R.color.directory_card_playing)
+        } else {
+            holder.itemView.setBackgroundResource(android.R.color.transparent)
+        }
     }
 
-    override fun getItemCount() = items.size
+    override fun getItemCount() = directories.size
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        fun bind(displayDirectory: DisplayDirectory, onClick: (String) -> Unit) {
+        fun bind(displayDirectory: DisplayDirectory, onClick: (DisplayDirectory) -> Unit) {
             val tvName = itemView.findViewById<TextView>(R.id.tvDirectoryName)
             tvName.text = displayDirectory.displayName
-            itemView.setOnClickListener { onClick(displayDirectory.fullPath) }
+            itemView.setOnClickListener { onClick(displayDirectory) }
         }
     }
 }

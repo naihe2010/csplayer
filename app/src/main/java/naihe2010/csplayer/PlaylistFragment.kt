@@ -31,7 +31,6 @@ class PlaylistFragment : Fragment() {
     private lateinit var tvEmptyPlaylist: TextView
     private lateinit var playerService: PlayerService
     private var playerBound = false
-    private lateinit var directoryPath: String
     private lateinit var playerConfig: PlayerConfig
 
     private val connection = object : ServiceConnection {
@@ -39,7 +38,7 @@ class PlaylistFragment : Fragment() {
             val binder = service as PlayerService.PlayerBinder
             playerService = binder.getService()
             playerBound = true
-            playFirstFile()
+            // No longer playing first file here, as it's handled by PlayerService
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
@@ -49,10 +48,7 @@ class PlaylistFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            directoryPath = it.getString("directoryPath") ?: return
-        }
-        playerConfig = PlayerConfig.load(requireContext())
+        playerConfig = PlayerConfig.getInstance(requireContext())
     }
 
     override fun onCreateView(
@@ -65,22 +61,44 @@ class PlaylistFragment : Fragment() {
         tvEmptyPlaylist = view.findViewById(R.id.tvEmptyPlaylist)
         playlistRecyclerView.layoutManager = LinearLayoutManager(context)
 
+        loadPlaylist()
+
+        return view
+    }
+
+    private fun loadPlaylist() {
+        Log.d("PlaylistFragment", "loadPlaylist called")
+        val directoryPath = playerConfig.currentDirectory
+        Log.d("PlaylistFragment", "Current directory from PlayerConfig: $directoryPath")
+        if (directoryPath.isNullOrEmpty()) {
+            tvEmptyPlaylist.visibility = View.VISIBLE
+            playlistRecyclerView.visibility = View.GONE
+            Log.d("PlaylistFragment", "Directory path is null or empty.")
+            return
+        }
+
         val playlistItems = generatePlaylistItems(directoryPath)
+        Log.d("PlaylistFragment", "Generated playlist items count: ${playlistItems.size}")
         if (playlistItems.isEmpty()) {
             tvEmptyPlaylist.visibility = View.VISIBLE
             playlistRecyclerView.visibility = View.GONE
+            Log.d("PlaylistFragment", "Playlist is empty.")
         } else {
             tvEmptyPlaylist.visibility = View.GONE
             playlistRecyclerView.visibility = View.VISIBLE
             val adapter = PlaylistAdapter(playlistItems) { item ->
                 if (playerBound) {
-                    playerService.play(item.filePath, item.startTimeMs, item.endTimeMs)
+                    playerService.play(
+                        directoryPath,
+                        item.filePath,
+                        item.filePath,
+                        item.startTimeMs,
+                        item.endTimeMs
+                    )
                 }
             }
             playlistRecyclerView.adapter = adapter
         }
-
-        return view
     }
 
     override fun onStart() {
@@ -178,22 +196,13 @@ class PlaylistFragment : Fragment() {
         )
     }
 
-    private fun playFirstFile() {
-        val playlistItems = generatePlaylistItems(directoryPath)
-        if (playlistItems.isNotEmpty() && playerBound) {
-            val firstItem = playlistItems[0]
-            playerService.play(firstItem.filePath, firstItem.startTimeMs, firstItem.endTimeMs)
-        } else if (playerBound) {
-            // If playlist is empty, stop playback if anything was playing
-            playerService.stopPlayback() // Assuming you'll add a stopPlayback method to PlayerService
-        }
-    }
-
     class PlaylistAdapter(
         private val items: List<PlaylistItem>,
         private val onItemClick: (PlaylistItem) -> Unit
     ) :
         RecyclerView.Adapter<PlaylistAdapter.ViewHolder>() {
+
+        private var nowPlayingPosition = -1
 
         class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val fileNameTextView: TextView = view.findViewById(R.id.fileNameTextView)
@@ -208,10 +217,31 @@ class PlaylistFragment : Fragment() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = items[position]
             holder.fileNameTextView.text = item.displayName
-            holder.itemView.setOnClickListener { onItemClick(item) }
+
+            if (position == nowPlayingPosition) {
+                holder.itemView.setBackgroundResource(R.color.playlist_item_playing)
+            } else {
+                if (position % 2 == 0) {
+                    holder.itemView.setBackgroundResource(R.color.playlist_item_even)
+                } else {
+                    holder.itemView.setBackgroundResource(R.color.playlist_item_odd)
+                }
+            }
+
+            holder.itemView.setOnClickListener {
+                onItemClick(item)
+                setNowPlaying(position)
+            }
         }
 
         override fun getItemCount() = items.size
+
+        fun setNowPlaying(position: Int) {
+            val previousPosition = nowPlayingPosition
+            nowPlayingPosition = position
+            notifyItemChanged(previousPosition)
+            notifyItemChanged(nowPlayingPosition)
+        }
     }
 
     companion object {
