@@ -110,8 +110,7 @@ class PlayerConfig private constructor(
 
 enum class PlaybackOrder {
     SEQUENTIAL,    // 顺序播放
-    RANDOM,        // 随机播放
-    SHUFFLE        // 乱序播放
+    RANDOM         // 随机播放
 }
 
 enum class LoopType {

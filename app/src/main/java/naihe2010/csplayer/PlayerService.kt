@@ -11,10 +11,10 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import java.io.File
 
 class PlayerService : Service() {
     private lateinit var player: ExoPlayer
@@ -31,6 +31,7 @@ class PlayerService : Service() {
         const val EXTRA_TITLE = "title"
         const val EXTRA_DURATION = "duration"
         const val EXTRA_CURRENT_POSITION = "currentPosition"
+        const val EXTRA_CURRENT_MEDIA_ITEM_INDEX = "currentMediaItemIndex"
     }
 
     private val controlReceiver = object : BroadcastReceiver() {
@@ -39,6 +40,17 @@ class PlayerService : Service() {
                 ACTION_TOGGLE_PLAY_PAUSE -> togglePlayPause()
                 ACTION_REWIND -> seekBackward()
                 ACTION_FORWARD -> seekForward()
+                SettingFragment.ACTION_PLAYBACK_RATE_CHANGED -> {
+                    val rate = intent.getFloatExtra(SettingFragment.EXTRA_PLAYBACK_RATE, 1.0f)
+                    player.setPlaybackSpeed(rate)
+                }
+
+                SettingFragment.ACTION_PLAYBACK_ORDER_CHANGED -> {
+                    val orderName = intent.getStringExtra(SettingFragment.EXTRA_PLAYBACK_ORDER)
+                    val newOrder = PlaybackOrder.valueOf(orderName ?: PlaybackOrder.SEQUENTIAL.name)
+                    playerConfig = playerConfig.updatePlaybackOrder(newOrder)
+                    playerConfig.save(this@PlayerService)
+                }
             }
         }
     }
@@ -47,6 +59,7 @@ class PlayerService : Service() {
         super.onCreate()
         playerConfig = PlayerConfig.getInstance(this)
         player = ExoPlayer.Builder(this).build()
+        player.setPlaybackSpeed(playerConfig.playbackRate)
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 sendStateBroadcast()
@@ -59,12 +72,70 @@ class PlayerService : Service() {
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 sendStateBroadcast()
+                mediaItem?.let {
+                    val currentFile = it.mediaId
+                    playerConfig = playerConfig.updateCurrentFile(currentFile)
+                    playerConfig.save(this@PlayerService)
+                }
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    sendStateBroadcast()
+                } else if (playbackState == Player.STATE_ENDED) {
+                    if (playerConfig.isLoopEnabled && (playerConfig.loopType == LoopType.FILE || playerConfig.loopType == LoopType.TIME)) {
+                        player.seekTo(0)
+                        player.play()
+                    } else {
+                        when (playerConfig.playbackOrder) {
+                            PlaybackOrder.SEQUENTIAL -> {
+                                if (player.hasNextMediaItem()) {
+                                    player.seekToNextMediaItem()
+                                } else {
+                                    player.stop()
+                                    player.clearMediaItems()
+                                    stopSelf()
+                                }
+                            }
+
+                            PlaybackOrder.RANDOM -> {
+                                val currentMediaId = player.currentMediaItem?.mediaId
+                                val availableItems = currentPlaylist.filter { it.filePath != currentMediaId }
+
+                                if (availableItems.isNotEmpty()) {
+                                    val randomIndex = availableItems.indices.random()
+                                    val randomPlaylistItem = availableItems[randomIndex]
+                                    val mediaItem = MediaItem.Builder()
+                                        .setUri(randomPlaylistItem.filePath)
+                                        .setClippingConfiguration(
+                                            MediaItem.ClippingConfiguration.Builder()
+                                                .setStartPositionMs(randomPlaylistItem.startTimeMs)
+                                                .setEndPositionMs(randomPlaylistItem.endTimeMs)
+                                                .build()
+                                        )
+                                        .build()
+                                    player.setMediaItem(mediaItem)
+                                    player.prepare()
+                                    player.play()
+                                } else {
+                                    // Only one item in the playlist, or all other items have been played
+                                    player.stop()
+                                    player.clearMediaItems()
+                                    stopSelf()
+                                }
+                            }
+                        }
+                    }
+                }
+                sendStateBroadcast()
             }
         })
         val intentFilter = IntentFilter().apply {
             addAction(ACTION_TOGGLE_PLAY_PAUSE)
             addAction(ACTION_REWIND)
             addAction(ACTION_FORWARD)
+            addAction(SettingFragment.ACTION_PLAYBACK_RATE_CHANGED)
+            addAction(SettingFragment.ACTION_PLAYBACK_ORDER_CHANGED)
         }
         LocalBroadcastManager.getInstance(this).registerReceiver(controlReceiver, intentFilter)
     }
@@ -92,31 +163,41 @@ class PlayerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder = binder
 
-    fun play(
-        directory: String,
-        file: String,
-        url: String,
-        startTimeMs: Long = 0L,
-        endTimeMs: Long = C.TIME_UNSET
-    ) {
-        playerConfig = playerConfig.updateCurrentDirectory(directory)
-        playerConfig = playerConfig.updateCurrentFile(file)
-        playerConfig.save(this@PlayerService)
+    private var currentPlaylist: List<PlaylistItem> = emptyList()
 
-        val mediaItem = MediaItem.Builder()
-            .setUri(url)
-            .setClippingConfiguration(
-                MediaItem.ClippingConfiguration.Builder()
-                    .setStartPositionMs(startTimeMs)
-                    .setEndPositionMs(endTimeMs)
-                    .build()
-            )
-            .build()
-        player.setMediaItem(mediaItem)
+    fun play(
+        playlist: List<PlaylistItem>,
+        startIndex: Int,
+        startPositionMs: Long = 0L
+    ) {
+        currentPlaylist = playlist
+        if (playlist.isEmpty()) {
+            player.clearMediaItems()
+            return
+        }
+
+        val mediaItems = playlist.map { item ->
+            MediaItem.Builder()
+                .setUri(item.filePath)
+                .setClippingConfiguration(
+                    MediaItem.ClippingConfiguration.Builder()
+                        .setStartPositionMs(item.startTimeMs)
+                        .setEndPositionMs(item.endTimeMs)
+                        .build()
+                )
+                .build()
+        }
+
+        player.setMediaItems(mediaItems, startIndex, startPositionMs)
         player.prepare()
         player.play()
+
+        val currentItem = playlist[startIndex]
+        playerConfig = playerConfig.updateCurrentDirectory(File(currentItem.filePath).parent)
+        playerConfig = playerConfig.updateCurrentFile(currentItem.filePath)
+        playerConfig.save(this@PlayerService)
+
         updateNotification()
-        handler.post(progressUpdateRunnable)
     }
 
     fun togglePlayPause() {
@@ -128,11 +209,15 @@ class PlayerService : Service() {
     }
 
     fun seekForward() {
-        player.seekForward()
+        player.seekToNextMediaItem()
     }
 
     fun seekBackward() {
-        player.seekBack()
+        player.seekToPreviousMediaItem()
+    }
+
+    fun seekTo(positionMs: Long) {
+        player.seekTo(positionMs)
     }
 
     private fun updateNotification() {
@@ -148,6 +233,7 @@ class PlayerService : Service() {
         }
         intent.putExtra(EXTRA_DURATION, player.duration)
         intent.putExtra(EXTRA_CURRENT_POSITION, player.currentPosition)
+        intent.putExtra(EXTRA_CURRENT_MEDIA_ITEM_INDEX, player.currentMediaItemIndex)
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
     }
 

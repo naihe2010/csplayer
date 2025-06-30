@@ -1,5 +1,6 @@
 package naihe2010.csplayer
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,6 +9,7 @@ import android.widget.EditText
 import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.material.slider.Slider
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputLayout
@@ -22,7 +24,7 @@ class SettingFragment : Fragment() {
     private lateinit var rgPlaybackOrder: RadioGroup
     private lateinit var rbSequential: View
     private lateinit var rbRandom: View
-    private lateinit var rbShuffle: View
+
     private lateinit var switchLoopEnabled: SwitchMaterial
     private lateinit var llLoopType: View
     private lateinit var rgLoopType: RadioGroup
@@ -53,7 +55,7 @@ class SettingFragment : Fragment() {
         rgPlaybackOrder = view.findViewById(R.id.rgPlaybackOrder)
         rbSequential = view.findViewById(R.id.rbSequential)
         rbRandom = view.findViewById(R.id.rbRandom)
-        rbShuffle = view.findViewById(R.id.rbShuffle)
+
         switchLoopEnabled = view.findViewById(R.id.switchLoopEnabled)
         llLoopType = view.findViewById(R.id.llLoopType)
         rgLoopType = view.findViewById(R.id.rgLoopType)
@@ -70,16 +72,23 @@ class SettingFragment : Fragment() {
             tvPlaybackRateValue.text = String.format("%.1fx", value)
             playerConfig = playerConfig.updatePlaybackRate(value)
             playerConfig.save(requireContext())
+            val intent = Intent(ACTION_PLAYBACK_RATE_CHANGED)
+            intent.putExtra(EXTRA_PLAYBACK_RATE, value)
+            LocalBroadcastManager.getInstance(requireContext()).sendBroadcast(intent)
         }
 
         rgPlaybackOrder.setOnCheckedChangeListener { _, checkedId ->
-            playerConfig = when (checkedId) {
-                R.id.rbSequential -> playerConfig.updatePlaybackOrder(PlaybackOrder.SEQUENTIAL)
-                R.id.rbRandom -> playerConfig.updatePlaybackOrder(PlaybackOrder.RANDOM)
-                R.id.rbShuffle -> playerConfig.updatePlaybackOrder(PlaybackOrder.SHUFFLE)
-                else -> playerConfig
+            val newPlaybackOrder = when (checkedId) {
+                R.id.rbSequential -> PlaybackOrder.SEQUENTIAL
+                R.id.rbRandom -> PlaybackOrder.RANDOM
+                else -> playerConfig.playbackOrder
             }
+            playerConfig = playerConfig.updatePlaybackOrder(newPlaybackOrder)
             playerConfig.save(requireContext())
+
+            val intent = Intent(ACTION_PLAYBACK_ORDER_CHANGED)
+            intent.putExtra(EXTRA_PLAYBACK_ORDER, newPlaybackOrder.name)
+            LocalBroadcastManager.getInstance(requireContext()).sendBroadcast(intent)
         }
 
         switchLoopEnabled.setOnCheckedChangeListener { _, isChecked ->
@@ -129,7 +138,7 @@ class SettingFragment : Fragment() {
         when (playerConfig.playbackOrder) {
             PlaybackOrder.SEQUENTIAL -> rgPlaybackOrder.check(R.id.rbSequential)
             PlaybackOrder.RANDOM -> rgPlaybackOrder.check(R.id.rbRandom)
-            PlaybackOrder.SHUFFLE -> rgPlaybackOrder.check(R.id.rbShuffle)
+
         }
 
         switchLoopEnabled.isChecked = playerConfig.isLoopEnabled
@@ -146,5 +155,10 @@ class SettingFragment : Fragment() {
         etLoopInterval.setText(playerConfig.loopInterval.toString())
     }
 
-
+    companion object {
+        const val ACTION_PLAYBACK_RATE_CHANGED = "naihe2010.csplayer.ACTION_PLAYBACK_RATE_CHANGED"
+        const val EXTRA_PLAYBACK_RATE = "playback_rate"
+        const val ACTION_PLAYBACK_ORDER_CHANGED = "naihe2010.csplayer.ACTION_PLAYBACK_ORDER_CHANGED"
+        const val EXTRA_PLAYBACK_ORDER = "playback_order"
+    }
 }

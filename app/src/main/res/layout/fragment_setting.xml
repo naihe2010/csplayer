@@ -58,11 +58,7 @@
                 android:layout_height="wrap_content"
                 android:text="随机播放" />
 
-            <RadioButton
-                android:id="@+id/rbShuffle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="乱序播放" />
+
         </RadioGroup>
 
         <!-- 循环播放 -->

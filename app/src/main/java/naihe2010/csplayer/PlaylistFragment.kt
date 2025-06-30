@@ -18,6 +18,10 @@ import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+
 data class PlaylistItem(
     val filePath: String,
     val displayName: String,
@@ -32,6 +36,7 @@ class PlaylistFragment : Fragment() {
     private lateinit var playerService: PlayerService
     private var playerBound = false
     private lateinit var playerConfig: PlayerConfig
+    private var playlistAdapter: PlaylistAdapter? = null
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -43,6 +48,15 @@ class PlaylistFragment : Fragment() {
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             playerBound = false
+        }
+    }
+
+    private val playerStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == PlayerService.ACTION_STATE_CHANGED) {
+                val currentMediaItemIndex = intent.getIntExtra(PlayerService.EXTRA_CURRENT_MEDIA_ITEM_INDEX, -1)
+                playlistAdapter?.setNowPlaying(currentMediaItemIndex)
+            }
         }
     }
 
@@ -86,18 +100,17 @@ class PlaylistFragment : Fragment() {
         } else {
             tvEmptyPlaylist.visibility = View.GONE
             playlistRecyclerView.visibility = View.VISIBLE
-            val adapter = PlaylistAdapter(playlistItems) { item ->
-                if (playerBound) {
-                    playerService.play(
-                        directoryPath,
-                        item.filePath,
-                        item.filePath,
-                        item.startTimeMs,
-                        item.endTimeMs
-                    )
-                }
+            val adapter = PlaylistAdapter(playlistItems) { _, position ->
+            if (playerBound) {
+                playerService.play(
+                    playlistItems,
+                    position,
+                    0L // Always start from the beginning of the clip
+                )
             }
-            playlistRecyclerView.adapter = adapter
+        }
+        playlistAdapter = adapter
+        playlistRecyclerView.adapter = playlistAdapter
         }
     }
 
@@ -106,12 +119,15 @@ class PlaylistFragment : Fragment() {
         Intent(requireContext(), PlayerService::class.java).also { intent ->
             requireContext().bindService(intent, connection, Context.BIND_AUTO_CREATE)
         }
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(playerStateReceiver, IntentFilter(PlayerService.ACTION_STATE_CHANGED))
     }
 
     override fun onStop() {
         super.onStop()
         requireContext().unbindService(connection)
         playerBound = false
+        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(playerStateReceiver)
     }
 
     private fun generatePlaylistItems(directoryPath: String): List<PlaylistItem> {
@@ -151,7 +167,7 @@ class PlaylistFragment : Fragment() {
                     while (currentStart < durationMs) {
                         val currentEnd = (currentStart + intervalMs).coerceAtMost(durationMs)
                         val displayName =
-                            "${file.nameWithoutExtension} [${formatMillis(currentStart)}-${
+                            "${file.name} [${formatMillis(currentStart)}-${
                                 formatMillis(
                                     currentEnd
                                 )
@@ -171,7 +187,7 @@ class PlaylistFragment : Fragment() {
                     playlist.add(
                         PlaylistItem(
                             file.absolutePath,
-                            file.nameWithoutExtension,
+                            file.name,
                             0L,
                             durationMs
                         )
@@ -198,7 +214,7 @@ class PlaylistFragment : Fragment() {
 
     class PlaylistAdapter(
         private val items: List<PlaylistItem>,
-        private val onItemClick: (PlaylistItem) -> Unit
+        private val onItemClick: (PlaylistItem, Int) -> Unit
     ) :
         RecyclerView.Adapter<PlaylistAdapter.ViewHolder>() {
 
@@ -229,7 +245,7 @@ class PlaylistFragment : Fragment() {
             }
 
             holder.itemView.setOnClickListener {
-                onItemClick(item)
+                onItemClick(item, position)
                 setNowPlaying(position)
             }
         }

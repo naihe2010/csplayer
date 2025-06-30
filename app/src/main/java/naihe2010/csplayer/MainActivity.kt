@@ -129,6 +129,12 @@ class MainActivity : AppCompatActivity() {
         btnRewind = findViewById(R.id.btnRewind)
         btnForward = findViewById(R.id.btnForward)
         sliderProgress = findViewById(R.id.sliderProgress)
+        sliderProgress.addOnChangeListener { _, value, _ ->
+            playerService?.seekTo(value.toLong())
+        }
+        sliderProgress.setLabelFormatter { value: Float ->
+            formatMillis(value.toLong())
+        }
         tvTitle = findViewById(R.id.tvTitle)
         tvCurrentTime = findViewById(R.id.tvCurrentTime)
         tvDuration = findViewById(R.id.tvDuration)
@@ -167,15 +173,18 @@ class MainActivity : AppCompatActivity() {
         btnPlayPause.setIconResource(if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
         tvTitle.text = title ?: "CSPlayer"
 
-        if (duration == C.TIME_UNSET || duration == 0L) {
+        if (duration <= 0 || duration == C.TIME_UNSET) {
             tvDuration.text = "00:00"
-            sliderProgress.valueTo = 1f // Set to a small positive value to avoid crash
+            sliderProgress.valueTo = 1f
+            sliderProgress.value = 0f
         } else {
             tvDuration.text = formatMillis(duration)
             sliderProgress.valueTo = duration.toFloat()
+            if (currentPosition <= duration) {
+                sliderProgress.value = currentPosition.toFloat()
+            }
         }
         tvCurrentTime.text = formatMillis(currentPosition)
-        sliderProgress.value = currentPosition.toFloat()
     }
 
     private fun formatMillis(millis: Long): String {
