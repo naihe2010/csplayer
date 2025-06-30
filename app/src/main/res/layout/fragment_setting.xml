@@ -17,13 +17,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="播放速度" />
+            android:text="@string/playback_speed_title" />
 
         <TextView
             android:id="@+id/tvPlaybackRateValue"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="1.0x" />
+            android:text="@string/playback_speed_default" />
 
         <com.google.android.material.slider.Slider
             android:id="@+id/sliderPlaybackRate"
@@ -38,7 +38,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="播放顺序" />
+            android:text="@string/playback_order_title" />
 
         <RadioGroup
             android:id="@+id/rgPlaybackOrder"
@@ -50,13 +50,13 @@
                 android:id="@+id/rbSequential"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="顺序播放" />
+                android:text="@string/playback_order_sequential" />
 
             <RadioButton
                 android:id="@+id/rbRandom"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="随机播放" />
+                android:text="@string/playback_order_random" />
 
 
         </RadioGroup>
@@ -67,7 +67,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="启用循环" />
+            android:text="@string/loop_enabled_switch" />
 
         <!-- 循环类型 -->
         <LinearLayout
@@ -81,7 +81,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="循环类型" />
+                android:text="@string/loop_type_title" />
 
             <RadioGroup
                 android:id="@+id/rgLoopType"
@@ -93,13 +93,13 @@
                     android:id="@+id/rbLoopFile"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="按文件循环" />
+                    android:text="@string/loop_type_file" />
 
                 <RadioButton
                     android:id="@+id/rbLoopTime"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="按时间循环" />
+                    android:text="@string/loop_type_time" />
             </RadioGroup>
         </LinearLayout>
 
@@ -115,7 +115,7 @@
                 android:id="@+id/etLoopInterval"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="循环间隔 (分钟)"
+                android:hint="@string/loop_interval_hint"
                 android:inputType="number" />
         </com.google.android.material.textfield.TextInputLayout>
 

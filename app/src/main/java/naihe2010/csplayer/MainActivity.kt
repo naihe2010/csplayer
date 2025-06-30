@@ -1,5 +1,6 @@
 package naihe2010.csplayer
 
+
 import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -21,12 +22,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import androidx.media3.common.C
-
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.slider.Slider
-
-
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
@@ -63,10 +60,11 @@ class MainActivity : AppCompatActivity() {
             if (allGranted) {
                 // Permissions granted, proceed with app logic
                 // You might want to reload HomeFragment or trigger some action here
-                Toast.makeText(this, "存储权限已授予", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.permission_granted, Toast.LENGTH_SHORT)
+                    .show()
             } else {
                 // Permissions denied, show a message or disable functionality
-                Toast.makeText(this, "存储权限被拒绝，部分功能可能无法使用", Toast.LENGTH_LONG)
+                Toast.makeText(this, R.string.permission_denied, Toast.LENGTH_LONG)
                     .show()
                 Log.e("MainActivity", "Permissions denied: $permissions")
             }
@@ -171,10 +169,10 @@ class MainActivity : AppCompatActivity() {
         currentPosition: Long
     ) {
         btnPlayPause.setIconResource(if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
-        tvTitle.text = title ?: "CSPlayer"
+        tvTitle.text = title ?: getString(R.string.app_name)
 
-        if (duration <= 0 || duration == C.TIME_UNSET) {
-            tvDuration.text = "00:00"
+        if (duration <= 0) {
+            tvDuration.text = getString(R.string.default_time)
             sliderProgress.valueTo = 1f
             sliderProgress.value = 0f
         } else {
@@ -241,7 +239,7 @@ class MainActivity : AppCompatActivity() {
         if (permissionsNeeded.isNotEmpty()) {
             requestPermissionLauncher.launch(permissionsNeeded.toTypedArray())
         } else if (permissionsPermanentlyDenied.isNotEmpty()) {
-            Toast.makeText(this, "存储权限已被永久拒绝，请在应用设置中手动授予。", Toast.LENGTH_LONG)
+            Toast.makeText(this, R.string.permission_permanently_denied, Toast.LENGTH_LONG)
                 .show()
             openAppSettings()
         }

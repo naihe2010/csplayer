@@ -87,15 +87,15 @@ class DirectoryFragment : Fragment() {
 
     private fun showDeleteDialog(position: Int) {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("删除目录")
-            .setMessage("确定要删除该目录吗？")
-            .setPositiveButton("删除") { _, _ ->
+            .setTitle(getString(R.string.dialog_delete_title))
+            .setMessage(getString(R.string.dialog_delete_message))
+            .setPositiveButton(getString(R.string.button_delete)) { _, _ ->
                 directories.removeAt(position)
                 playerConfig.updateDirectories(directories.toSet())
                 adapter.notifyItemRemoved(position)
                 saveDirectories()
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.button_cancel), null)
             .show()
     }
 

@@ -18,7 +18,7 @@ class MediaNotificationManager(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "媒体播放",
+                context.getString(R.string.notification_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager =
@@ -26,8 +26,8 @@ class MediaNotificationManager(
             manager.createNotificationChannel(channel)
         }
         return NotificationCompat.Builder(context, channelId)
-            .setContentTitle("CSPlayer")
-            .setContentText("正在播放")
+            .setContentTitle(context.getString(R.string.notification_title))
+            .setContentText(context.getString(R.string.notification_playing))
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .build()

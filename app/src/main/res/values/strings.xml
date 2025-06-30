@@ -1,0 +1,27 @@
+<resources>
+    <string name="permission_granted">存储权限已授予</string>
+    <string name="permission_denied">存储权限被拒绝，部分功能可能无法使用</string>
+    <string name="app_name">CSPlayer</string>
+    <string name="default_time">00:00</string>
+    <string name="permission_permanently_denied">存储权限已被永久拒绝，请在应用设置中手动授予。</string>
+    <string name="dialog_delete_title">删除目录</string>
+    <string name="dialog_delete_message">确定要删除该目录吗？</string>
+    <string name="button_delete">删除</string>
+    <string name="button_cancel">取消</string>
+    <string name="now_playing_title">最近播放</string>
+    <string name="all_directories_title">所有目录</string>
+    <string name="notification_channel_name">媒体播放</string>
+    <string name="notification_title">CSPlayer</string>
+    <string name="notification_playing">正在播放</string>
+    <string name="empty_playlist_message">此目录没有可播放的文件。</string>
+    <string name="playback_speed_title">播放速度</string>
+    <string name="playback_speed_default">1.0x</string>
+    <string name="playback_order_title">播放顺序</string>
+    <string name="playback_order_sequential">顺序播放</string>
+    <string name="playback_order_random">随机播放</string>
+    <string name="loop_enabled_switch">启用循环</string>
+    <string name="loop_type_title">循环类型</string>
+    <string name="loop_type_file">按文件循环</string>
+    <string name="loop_type_time">按时间循环</string>
+    <string name="loop_interval_hint">循环间隔 (分钟)</string>
+</resources>
