@@ -19,6 +19,7 @@
     <string name="playback_order_title">播放顺序</string>
     <string name="playback_order_sequential">顺序播放</string>
     <string name="playback_order_random">随机播放</string>
+    <string name="playback_order_loop">循环播放</string>
     <string name="loop_enabled_switch">启用循环</string>
     <string name="loop_type_title">循环类型</string>
     <string name="loop_type_file">按文件循环</string>

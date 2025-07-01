@@ -11,7 +11,6 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.material.slider.Slider
-import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputLayout
 
 class SettingFragment : Fragment() {
@@ -24,8 +23,8 @@ class SettingFragment : Fragment() {
     private lateinit var rgPlaybackOrder: RadioGroup
     private lateinit var rbSequential: View
     private lateinit var rbRandom: View
+    private lateinit var rbLoop: View
 
-    private lateinit var switchLoopEnabled: SwitchMaterial
     private lateinit var llLoopType: View
     private lateinit var rgLoopType: RadioGroup
     private lateinit var rbLoopFile: View
@@ -55,8 +54,8 @@ class SettingFragment : Fragment() {
         rgPlaybackOrder = view.findViewById(R.id.rgPlaybackOrder)
         rbSequential = view.findViewById(R.id.rbSequential)
         rbRandom = view.findViewById(R.id.rbRandom)
+        rbLoop = view.findViewById(R.id.rbLoop)
 
-        switchLoopEnabled = view.findViewById(R.id.switchLoopEnabled)
         llLoopType = view.findViewById(R.id.llLoopType)
         rgLoopType = view.findViewById(R.id.rgLoopType)
         rbLoopFile = view.findViewById(R.id.rbLoopFile)
@@ -81,33 +80,26 @@ class SettingFragment : Fragment() {
             val newPlaybackOrder = when (checkedId) {
                 R.id.rbSequential -> PlaybackOrder.SEQUENTIAL
                 R.id.rbRandom -> PlaybackOrder.RANDOM
+                R.id.rbLoop -> PlaybackOrder.LOOP
                 else -> playerConfig.playbackOrder
             }
             playerConfig = playerConfig.updatePlaybackOrder(newPlaybackOrder)
             playerConfig.save(requireContext())
+
+            llLoopType.visibility =
+                if (newPlaybackOrder == PlaybackOrder.LOOP) View.VISIBLE else View.GONE
+            tilLoopInterval.visibility =
+                if (newPlaybackOrder == PlaybackOrder.LOOP && rgLoopType.checkedRadioButtonId == R.id.rbLoopTime) View.VISIBLE else View.GONE
 
             val intent = Intent(ACTION_PLAYBACK_ORDER_CHANGED)
             intent.putExtra(EXTRA_PLAYBACK_ORDER, newPlaybackOrder.name)
             LocalBroadcastManager.getInstance(requireContext()).sendBroadcast(intent)
         }
 
-        switchLoopEnabled.setOnCheckedChangeListener { _, isChecked ->
-            llLoopType.visibility = if (isChecked) View.VISIBLE else View.GONE
-            tilLoopInterval.visibility =
-                if (isChecked && rgLoopType.checkedRadioButtonId == R.id.rbLoopTime) View.VISIBLE else View.GONE
-            playerConfig = playerConfig.updateLoopSettings(
-                isChecked,
-                playerConfig.loopType,
-                playerConfig.loopInterval
-            )
-            playerConfig.save(requireContext())
-        }
-
         rgLoopType.setOnCheckedChangeListener { _, checkedId ->
             tilLoopInterval.visibility =
                 if (checkedId == R.id.rbLoopTime) View.VISIBLE else View.GONE
             playerConfig = playerConfig.updateLoopSettings(
-                playerConfig.isLoopEnabled,
                 when (checkedId) {
                     R.id.rbLoopFile -> LoopType.FILE
                     R.id.rbLoopTime -> LoopType.TIME
@@ -122,7 +114,6 @@ class SettingFragment : Fragment() {
             if (!hasFocus) {
                 val interval = etLoopInterval.text.toString().toIntOrNull() ?: 0
                 playerConfig = playerConfig.updateLoopSettings(
-                    playerConfig.isLoopEnabled,
                     playerConfig.loopType,
                     interval
                 )
@@ -138,11 +129,11 @@ class SettingFragment : Fragment() {
         when (playerConfig.playbackOrder) {
             PlaybackOrder.SEQUENTIAL -> rgPlaybackOrder.check(R.id.rbSequential)
             PlaybackOrder.RANDOM -> rgPlaybackOrder.check(R.id.rbRandom)
-
+            PlaybackOrder.LOOP -> rgPlaybackOrder.check(R.id.rbLoop)
         }
 
-        switchLoopEnabled.isChecked = playerConfig.isLoopEnabled
-        llLoopType.visibility = if (playerConfig.isLoopEnabled) View.VISIBLE else View.GONE
+        llLoopType.visibility =
+            if (playerConfig.playbackOrder == PlaybackOrder.LOOP) View.VISIBLE else View.GONE
 
         when (playerConfig.loopType) {
             LoopType.FILE -> rgLoopType.check(R.id.rbLoopFile)
@@ -151,7 +142,7 @@ class SettingFragment : Fragment() {
         }
 
         tilLoopInterval.visibility =
-            if (playerConfig.isLoopEnabled && playerConfig.loopType == LoopType.TIME) View.VISIBLE else View.GONE
+            if (playerConfig.playbackOrder == PlaybackOrder.LOOP && playerConfig.loopType == LoopType.TIME) View.VISIBLE else View.GONE
         etLoopInterval.setText(playerConfig.loopInterval.toString())
     }
 

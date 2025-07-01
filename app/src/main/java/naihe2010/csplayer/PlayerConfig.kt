@@ -9,7 +9,6 @@ class PlayerConfig private constructor(
     var currentPosition: Long,
     var playbackRate: Float,
     var playbackOrder: PlaybackOrder,
-    var isLoopEnabled: Boolean,
     var loopType: LoopType,
     var loopInterval: Int
 ) {
@@ -24,7 +23,6 @@ class PlayerConfig private constructor(
         private const val KEY_CURRENT_POSITION = "current_position"
         private const val KEY_PLAYBACK_RATE = "playback_rate"
         private const val KEY_PLAYBACK_ORDER = "playback_order"
-        private const val KEY_IS_LOOP_ENABLED = "is_loop_enabled"
         private const val KEY_LOOP_TYPE = "loop_type"
         private const val KEY_LOOP_INTERVAL = "loop_interval"
 
@@ -46,7 +44,6 @@ class PlayerConfig private constructor(
                     prefs.getString(KEY_PLAYBACK_ORDER, PlaybackOrder.SEQUENTIAL.name)
                         ?: PlaybackOrder.SEQUENTIAL.name
                 ),
-                isLoopEnabled = prefs.getBoolean(KEY_IS_LOOP_ENABLED, false),
                 loopType = LoopType.valueOf(
                     prefs.getString(KEY_LOOP_TYPE, LoopType.FILE.name) ?: LoopType.FILE.name
                 ),
@@ -64,7 +61,6 @@ class PlayerConfig private constructor(
             putLong(KEY_CURRENT_POSITION, currentPosition)
             putFloat(KEY_PLAYBACK_RATE, playbackRate)
             putString(KEY_PLAYBACK_ORDER, playbackOrder.name)
-            putBoolean(KEY_IS_LOOP_ENABLED, isLoopEnabled)
             putString(KEY_LOOP_TYPE, loopType.name)
             putInt(KEY_LOOP_INTERVAL, loopInterval)
         }.apply()
@@ -100,8 +96,7 @@ class PlayerConfig private constructor(
         return this
     }
 
-    fun updateLoopSettings(enabled: Boolean, type: LoopType, interval: Int): PlayerConfig {
-        this.isLoopEnabled = enabled
+    fun updateLoopSettings(type: LoopType, interval: Int): PlayerConfig {
         this.loopType = type
         this.loopInterval = interval
         return this
@@ -110,7 +105,8 @@ class PlayerConfig private constructor(
 
 enum class PlaybackOrder {
     SEQUENTIAL,    // 顺序播放
-    RANDOM         // 随机播放
+    RANDOM,        // 随机播放
+    LOOP           // 循环播放
 }
 
 enum class LoopType {

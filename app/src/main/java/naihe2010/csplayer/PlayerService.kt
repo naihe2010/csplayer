@@ -83,47 +83,48 @@ class PlayerService : Service() {
                 if (playbackState == Player.STATE_READY) {
                     sendStateBroadcast()
                 } else if (playbackState == Player.STATE_ENDED) {
-                    if (playerConfig.isLoopEnabled && (playerConfig.loopType == LoopType.FILE || playerConfig.loopType == LoopType.TIME)) {
-                        player.seekTo(0)
-                        player.play()
-                    } else {
-                        when (playerConfig.playbackOrder) {
-                            PlaybackOrder.SEQUENTIAL -> {
-                                if (player.hasNextMediaItem()) {
-                                    player.seekToNextMediaItem()
-                                } else {
-                                    player.stop()
-                                    player.clearMediaItems()
-                                    stopSelf()
-                                }
+                    when (playerConfig.playbackOrder) {
+                        PlaybackOrder.SEQUENTIAL -> {
+                            if (player.hasNextMediaItem()) {
+                                player.seekToNextMediaItem()
+                            } else {
+                                player.stop()
+                                player.clearMediaItems()
+                                stopSelf()
                             }
+                        }
 
-                            PlaybackOrder.RANDOM -> {
-                                val currentMediaId = player.currentMediaItem?.mediaId
-                                val availableItems = currentPlaylist.filter { it.filePath != currentMediaId }
+                        PlaybackOrder.RANDOM -> {
+                            val currentMediaId = player.currentMediaItem?.mediaId
+                            val availableItems =
+                                currentPlaylist.filter { it.filePath != currentMediaId }
 
-                                if (availableItems.isNotEmpty()) {
-                                    val randomIndex = availableItems.indices.random()
-                                    val randomPlaylistItem = availableItems[randomIndex]
-                                    val mediaItem = MediaItem.Builder()
-                                        .setUri(randomPlaylistItem.filePath)
-                                        .setClippingConfiguration(
-                                            MediaItem.ClippingConfiguration.Builder()
-                                                .setStartPositionMs(randomPlaylistItem.startTimeMs)
-                                                .setEndPositionMs(randomPlaylistItem.endTimeMs)
-                                                .build()
-                                        )
-                                        .build()
-                                    player.setMediaItem(mediaItem)
-                                    player.prepare()
-                                    player.play()
-                                } else {
-                                    // Only one item in the playlist, or all other items have been played
-                                    player.stop()
-                                    player.clearMediaItems()
-                                    stopSelf()
-                                }
+                            if (availableItems.isNotEmpty()) {
+                                val randomIndex = availableItems.indices.random()
+                                val randomPlaylistItem = availableItems[randomIndex]
+                                val mediaItem = MediaItem.Builder()
+                                    .setUri(randomPlaylistItem.filePath)
+                                    .setClippingConfiguration(
+                                        MediaItem.ClippingConfiguration.Builder()
+                                            .setStartPositionMs(randomPlaylistItem.startTimeMs)
+                                            .setEndPositionMs(randomPlaylistItem.endTimeMs)
+                                            .build()
+                                    )
+                                    .build()
+                                player.setMediaItem(mediaItem)
+                                player.prepare()
+                                player.play()
+                            } else {
+                                // Only one item in the playlist, or all other items have been played
+                                player.stop()
+                                player.clearMediaItems()
+                                stopSelf()
                             }
+                        }
+
+                        PlaybackOrder.LOOP -> {
+                            player.seekTo(0)
+                            player.play()
                         }
                     }
                 }

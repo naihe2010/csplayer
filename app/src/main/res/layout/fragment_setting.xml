@@ -58,16 +58,14 @@
                 android:layout_height="wrap_content"
                 android:text="@string/playback_order_random" />
 
+            <RadioButton
+                android:id="@+id/rbLoop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/playback_order_loop" />
+
 
         </RadioGroup>
-
-        <!-- 循环播放 -->
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switchLoopEnabled"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/loop_enabled_switch" />
 
         <!-- 循环类型 -->
         <LinearLayout

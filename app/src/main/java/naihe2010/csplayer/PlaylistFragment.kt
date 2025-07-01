@@ -1,8 +1,10 @@
 package naihe2010.csplayer
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.media.MediaMetadataRetriever
 import android.os.Bundle
@@ -13,14 +15,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 import java.util.concurrent.TimeUnit
-
-import android.content.BroadcastReceiver
-import android.content.IntentFilter
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 data class PlaylistItem(
     val filePath: String,
@@ -54,7 +53,8 @@ class PlaylistFragment : Fragment() {
     private val playerStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == PlayerService.ACTION_STATE_CHANGED) {
-                val currentMediaItemIndex = intent.getIntExtra(PlayerService.EXTRA_CURRENT_MEDIA_ITEM_INDEX, -1)
+                val currentMediaItemIndex =
+                    intent.getIntExtra(PlayerService.EXTRA_CURRENT_MEDIA_ITEM_INDEX, -1)
                 playlistAdapter?.setNowPlaying(currentMediaItemIndex)
             }
         }
@@ -101,16 +101,16 @@ class PlaylistFragment : Fragment() {
             tvEmptyPlaylist.visibility = View.GONE
             playlistRecyclerView.visibility = View.VISIBLE
             val adapter = PlaylistAdapter(playlistItems) { _, position ->
-            if (playerBound) {
-                playerService.play(
-                    playlistItems,
-                    position,
-                    0L // Always start from the beginning of the clip
-                )
+                if (playerBound) {
+                    playerService.play(
+                        playlistItems,
+                        position,
+                        0L // Always start from the beginning of the clip
+                    )
+                }
             }
-        }
-        playlistAdapter = adapter
-        playlistRecyclerView.adapter = playlistAdapter
+            playlistAdapter = adapter
+            playlistRecyclerView.adapter = playlistAdapter
         }
     }
 
@@ -161,7 +161,7 @@ class PlaylistFragment : Fragment() {
                     continue
                 }
 
-                if (playerConfig.isLoopEnabled && playerConfig.loopType == LoopType.TIME && playerConfig.loopInterval > 0) {
+                if (playerConfig.playbackOrder == PlaybackOrder.LOOP && playerConfig.loopType == LoopType.TIME && playerConfig.loopInterval > 0) {
                     val intervalMs = TimeUnit.MINUTES.toMillis(playerConfig.loopInterval.toLong())
                     var currentStart = 0L
                     while (currentStart < durationMs) {
