@@ -28,6 +28,10 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        const val ACTION_EXIT_APP = "naihe2010.csplayer.ACTION_EXIT_APP"
+    }
+
     private var playerService: PlayerService? = null
     private var isBound = false
 
@@ -82,6 +86,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val exitReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_EXIT_APP) {
+                finishAffinity()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -107,11 +119,14 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         LocalBroadcastManager.getInstance(this)
             .registerReceiver(playerStateReceiver, IntentFilter(PlayerService.ACTION_STATE_CHANGED))
+        LocalBroadcastManager.getInstance(this)
+            .registerReceiver(exitReceiver, IntentFilter(ACTION_EXIT_APP))
     }
 
     override fun onPause() {
         super.onPause()
         LocalBroadcastManager.getInstance(this).unregisterReceiver(playerStateReceiver)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(exitReceiver)
     }
 
     override fun onDestroy() {
@@ -127,8 +142,10 @@ class MainActivity : AppCompatActivity() {
         btnRewind = findViewById(R.id.btnRewind)
         btnForward = findViewById(R.id.btnForward)
         sliderProgress = findViewById(R.id.sliderProgress)
-        sliderProgress.addOnChangeListener { _, value, _ ->
-            playerService?.seekTo(value.toLong())
+        sliderProgress.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                playerService?.seekTo(value.toLong())
+            }
         }
         sliderProgress.setLabelFormatter { value: Float ->
             formatMillis(value.toLong())
@@ -217,7 +234,11 @@ class MainActivity : AppCompatActivity() {
         val permissionsPermanentlyDenied = mutableListOf<String>()
 
         val permissionsToCheck = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_VIDEO)
+            arrayOf(
+                Manifest.permission.READ_MEDIA_AUDIO,
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
         } else {
             arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }

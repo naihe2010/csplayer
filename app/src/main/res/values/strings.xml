@@ -24,5 +24,12 @@
     <string name="loop_type_title">循环类型</string>
     <string name="loop_type_file">按文件循环</string>
     <string name="loop_type_time">按时间循环</string>
+    <string name="loop_type_segment">按片段循环</string>
+    <string name="silence_threshold">静音阈值 (秒)</string>
     <string name="loop_interval_hint">循环间隔 (分钟)</string>
+    <string name="pause">暂停</string>
+    <string name="play">播放</string>
+    <string name="rewind">后退</string>
+    <string name="forward">前进</string>
+    <string name="exit">退出</string>
 </resources>

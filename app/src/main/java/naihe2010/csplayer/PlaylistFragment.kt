@@ -183,6 +183,25 @@ class PlaylistFragment : Fragment() {
                         currentStart =
                             currentEnd + 1 // Move to the next millisecond after the current segment
                     }
+                } else if (playerConfig.playbackOrder == PlaybackOrder.LOOP && playerConfig.loopType == LoopType.SEGMENT && playerConfig.silenceThreshold > 0) {
+                    val pairs = AudioNonSilenceAnalyzer.detectNonSilenceSegments(
+                        file.absolutePath,
+                        -50.0,
+                        playerConfig.silenceThreshold.toLong() * 1000L
+                    )
+                    for (pair in pairs) {
+                        val displayName = "${file.name} [${
+                            formatMillis(pair.startMs)
+                        }-${formatMillis(pair.endMs)}]"
+                        playlist.add(
+                            PlaylistItem(
+                                file.absolutePath,
+                                displayName,
+                                pair.startMs,
+                                pair.durationMs
+                            )
+                        )
+                    }
                 } else {
                     playlist.add(
                         PlaylistItem(
@@ -199,6 +218,7 @@ class PlaylistFragment : Fragment() {
                 retriever.release()
             }
         }
+        playlist.sortBy { it.displayName }
         Log.d("PlaylistFragment", "Generated ${playlist.size} playlist items.")
         return playlist
     }
@@ -253,10 +273,12 @@ class PlaylistFragment : Fragment() {
         override fun getItemCount() = items.size
 
         fun setNowPlaying(position: Int) {
-            val previousPosition = nowPlayingPosition
-            nowPlayingPosition = position
-            notifyItemChanged(previousPosition)
-            notifyItemChanged(nowPlayingPosition)
+            if (position != nowPlayingPosition) {
+                val previousPosition = nowPlayingPosition
+                nowPlayingPosition = position
+                notifyItemChanged(previousPosition)
+                notifyItemChanged(nowPlayingPosition)
+            }
         }
     }
 

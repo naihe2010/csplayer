@@ -29,8 +29,11 @@ class SettingFragment : Fragment() {
     private lateinit var rgLoopType: RadioGroup
     private lateinit var rbLoopFile: View
     private lateinit var rbLoopTime: View
+    private lateinit var rbLoopSegment: View
     private lateinit var tilLoopInterval: TextInputLayout
     private lateinit var etLoopInterval: EditText
+    private lateinit var tilSilenceThreshold: TextInputLayout
+    private lateinit var etSilenceThreshold: EditText
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -60,8 +63,11 @@ class SettingFragment : Fragment() {
         rgLoopType = view.findViewById(R.id.rgLoopType)
         rbLoopFile = view.findViewById(R.id.rbLoopFile)
         rbLoopTime = view.findViewById(R.id.rbLoopTime)
+        rbLoopSegment = view.findViewById(R.id.rbLoopSegment)
         tilLoopInterval = view.findViewById(R.id.tilLoopInterval)
         etLoopInterval = view.findViewById(R.id.etLoopInterval)
+        tilSilenceThreshold = view.findViewById(R.id.tilSilenceThreshold)
+        etSilenceThreshold = view.findViewById(R.id.etSilenceThreshold)
     }
 
     private fun setupListeners() {
@@ -99,10 +105,14 @@ class SettingFragment : Fragment() {
         rgLoopType.setOnCheckedChangeListener { _, checkedId ->
             tilLoopInterval.visibility =
                 if (checkedId == R.id.rbLoopTime) View.VISIBLE else View.GONE
+            tilSilenceThreshold.visibility =
+                if (checkedId == R.id.rbLoopSegment) View.VISIBLE else View.GONE
+
             playerConfig = playerConfig.updateLoopSettings(
                 when (checkedId) {
                     R.id.rbLoopFile -> LoopType.FILE
                     R.id.rbLoopTime -> LoopType.TIME
+                    R.id.rbLoopSegment -> LoopType.SEGMENT
                     else -> playerConfig.loopType
                 },
                 playerConfig.loopInterval
@@ -117,6 +127,14 @@ class SettingFragment : Fragment() {
                     playerConfig.loopType,
                     interval
                 )
+                playerConfig.save(requireContext())
+            }
+        }
+
+        etSilenceThreshold.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                val interval = etSilenceThreshold.text.toString().toIntOrNull() ?: 0
+                playerConfig = playerConfig.updateSilenceThreshold(interval)
                 playerConfig.save(requireContext())
             }
         }
@@ -138,12 +156,16 @@ class SettingFragment : Fragment() {
         when (playerConfig.loopType) {
             LoopType.FILE -> rgLoopType.check(R.id.rbLoopFile)
             LoopType.TIME -> rgLoopType.check(R.id.rbLoopTime)
+            LoopType.SEGMENT -> rgLoopType.check(R.id.rbLoopSegment)
             else -> {}
         }
 
         tilLoopInterval.visibility =
             if (playerConfig.playbackOrder == PlaybackOrder.LOOP && playerConfig.loopType == LoopType.TIME) View.VISIBLE else View.GONE
+        tilSilenceThreshold.visibility =
+            if (playerConfig.playbackOrder == PlaybackOrder.LOOP && playerConfig.loopType == LoopType.SEGMENT) View.VISIBLE else View.GONE
         etLoopInterval.setText(playerConfig.loopInterval.toString())
+        etSilenceThreshold.setText(playerConfig.silenceThreshold.toString())
     }
 
     companion object {

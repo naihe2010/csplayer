@@ -27,6 +27,7 @@ class PlayerService : Service() {
         const val ACTION_TOGGLE_PLAY_PAUSE = "naihe2010.csplayer.ACTION_TOGGLE_PLAY_PAUSE"
         const val ACTION_REWIND = "naihe2010.csplayer.ACTION_REWIND"
         const val ACTION_FORWARD = "naihe2010.csplayer.ACTION_FORWARD"
+        const val ACTION_EXIT = "naihe2010.csplayer.ACTION_EXIT"
         const val EXTRA_IS_PLAYING = "isPlaying"
         const val EXTRA_TITLE = "title"
         const val EXTRA_DURATION = "duration"
@@ -68,6 +69,7 @@ class PlayerService : Service() {
                 } else {
                     handler.removeCallbacks(progressUpdateRunnable)
                 }
+                updateNotification()
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -77,6 +79,7 @@ class PlayerService : Service() {
                     playerConfig = playerConfig.updateCurrentFile(currentFile)
                     playerConfig.save(this@PlayerService)
                 }
+                updateNotification()
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -142,7 +145,16 @@ class PlayerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // This method is kept for starting the service from background
+        when (intent?.action) {
+            ACTION_TOGGLE_PLAY_PAUSE -> togglePlayPause()
+            ACTION_REWIND -> seekBackward()
+            ACTION_FORWARD -> seekForward()
+            ACTION_EXIT -> {
+                stopSelf()
+                val exitIntent = Intent(MainActivity.ACTION_EXIT_APP)
+                LocalBroadcastManager.getInstance(this).sendBroadcast(exitIntent)
+            }
+        }
         return START_STICKY
     }
 

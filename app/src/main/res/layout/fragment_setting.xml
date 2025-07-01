@@ -98,6 +98,12 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/loop_type_time" />
+
+                <RadioButton
+                    android:id="@+id/rbLoopSegment"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/loop_type_segment" />
             </RadioGroup>
         </LinearLayout>
 
@@ -114,6 +120,22 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="@string/loop_interval_hint"
+                android:inputType="number" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- 片段间隔 -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilSilenceThreshold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:visibility="gone">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etSilenceThreshold"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/silence_threshold"
                 android:inputType="number" />
         </com.google.android.material.textfield.TextInputLayout>
 
