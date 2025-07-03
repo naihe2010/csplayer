@@ -32,4 +32,8 @@
     <string name="rewind">后退</string>
     <string name="forward">前进</string>
     <string name="exit">退出</string>
+    <string name="index">首页</string>
+    <string name="directory_manager">目录管理</string>
+    <string name="preferences">设置</string>
+    <string name="quit">退出</string>
 </resources>

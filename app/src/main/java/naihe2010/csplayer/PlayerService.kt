@@ -190,8 +190,14 @@ class PlayerService : Service() {
         }
 
         val mediaItems = playlist.map { item ->
+            val fileName = File(item.filePath).name
             MediaItem.Builder()
                 .setUri(item.filePath)
+                .setMediaMetadata(
+                    androidx.media3.common.MediaMetadata.Builder()
+                        .setTitle(fileName)
+                        .build()
+                )
                 .setClippingConfiguration(
                     MediaItem.ClippingConfiguration.Builder()
                         .setStartPositionMs(item.startTimeMs)

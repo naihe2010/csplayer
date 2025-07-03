@@ -187,6 +187,7 @@ class MainActivity : AppCompatActivity() {
     ) {
         btnPlayPause.setIconResource(if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
         tvTitle.text = title ?: getString(R.string.app_name)
+        tvTitle.isSelected = true
 
         if (duration <= 0) {
             tvDuration.text = getString(R.string.default_time)
