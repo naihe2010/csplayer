@@ -88,8 +88,8 @@ class PlayerService : Service() {
                 } else if (playbackState == Player.STATE_ENDED) {
                     when (playerConfig.playbackOrder) {
                         PlaybackOrder.SEQUENTIAL -> {
-                            if (player.hasNextMediaItem()) {
-                                player.seekToNextMediaItem()
+                            if (currentPlaylistItemIndex < currentPlaylist.size - 1) {
+                                play(currentPlaylist, currentPlaylistItemIndex + 1)
                             } else {
                                 player.stop()
                                 player.clearMediaItems()
@@ -98,27 +98,10 @@ class PlayerService : Service() {
                         }
 
                         PlaybackOrder.RANDOM -> {
-                            val currentMediaId = player.currentMediaItem?.mediaId
-                            val availableItems =
-                                currentPlaylist.filter { it.filePath != currentMediaId }
-
-                            if (availableItems.isNotEmpty()) {
-                                val randomIndex = availableItems.indices.random()
-                                val randomPlaylistItem = availableItems[randomIndex]
-                                val mediaItem = MediaItem.Builder()
-                                    .setUri(randomPlaylistItem.filePath)
-                                    .setClippingConfiguration(
-                                        MediaItem.ClippingConfiguration.Builder()
-                                            .setStartPositionMs(randomPlaylistItem.startTimeMs)
-                                            .setEndPositionMs(randomPlaylistItem.endTimeMs)
-                                            .build()
-                                    )
-                                    .build()
-                                player.setMediaItem(mediaItem)
-                                player.prepare()
-                                player.play()
+                            if (currentPlaylist.isNotEmpty()) {
+                                val randomIndex = currentPlaylist.indices.random()
+                                play(currentPlaylist, randomIndex)
                             } else {
-                                // Only one item in the playlist, or all other items have been played
                                 player.stop()
                                 player.clearMediaItems()
                                 stopSelf()
@@ -126,8 +109,7 @@ class PlayerService : Service() {
                         }
 
                         PlaybackOrder.LOOP -> {
-                            player.seekTo(0)
-                            player.play()
+                            play(currentPlaylist, currentPlaylistItemIndex)
                         }
                     }
                 }
@@ -166,7 +148,7 @@ class PlayerService : Service() {
     }
 
     fun stopService() {
-        stopForeground(true)
+        stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
@@ -177,6 +159,7 @@ class PlayerService : Service() {
     override fun onBind(intent: Intent?): IBinder = binder
 
     private var currentPlaylist: List<PlaylistItem> = emptyList()
+    private var currentPlaylistItemIndex: Int = -1
 
     fun play(
         playlist: List<PlaylistItem>,
@@ -184,36 +167,37 @@ class PlayerService : Service() {
         startPositionMs: Long = 0L
     ) {
         currentPlaylist = playlist
-        if (playlist.isEmpty()) {
+        currentPlaylistItemIndex = startIndex
+
+        if (playlist.isEmpty() || startIndex < 0 || startIndex >= playlist.size) {
             player.clearMediaItems()
             return
         }
 
-        val mediaItems = playlist.map { item ->
-            val fileName = File(item.filePath).name
-            MediaItem.Builder()
-                .setUri(item.filePath)
-                .setMediaMetadata(
-                    androidx.media3.common.MediaMetadata.Builder()
-                        .setTitle(fileName)
-                        .build()
-                )
-                .setClippingConfiguration(
-                    MediaItem.ClippingConfiguration.Builder()
-                        .setStartPositionMs(item.startTimeMs)
-                        .setEndPositionMs(item.endTimeMs)
-                        .build()
-                )
-                .build()
-        }
+        val item = playlist[startIndex]
+        val fileName = File(item.filePath).name
+        val mediaItem = MediaItem.Builder()
+            .setUri(item.filePath)
+            .setMediaMetadata(
+                androidx.media3.common.MediaMetadata.Builder()
+                    .setTitle(fileName)
+                    .build()
+            )
+            .setClippingConfiguration(
+                MediaItem.ClippingConfiguration.Builder()
+                    .setStartPositionMs(item.startTimeMs)
+                    .setEndPositionMs(item.endTimeMs)
+                    .build()
+            )
+            .build()
 
-        player.setMediaItems(mediaItems, startIndex, startPositionMs)
+        player.setMediaItem(mediaItem)
+        player.seekTo(startPositionMs)
         player.prepare()
         player.play()
 
-        val currentItem = playlist[startIndex]
-        playerConfig = playerConfig.updateCurrentDirectory(File(currentItem.filePath).parent)
-        playerConfig = playerConfig.updateCurrentFile(currentItem.filePath)
+        playerConfig = playerConfig.updateCurrentDirectory(File(item.filePath).parent)
+        playerConfig = playerConfig.updateCurrentFile(item.filePath)
         playerConfig.save(this@PlayerService)
 
         updateNotification()
@@ -252,7 +236,7 @@ class PlayerService : Service() {
         }
         intent.putExtra(EXTRA_DURATION, player.duration)
         intent.putExtra(EXTRA_CURRENT_POSITION, player.currentPosition)
-        intent.putExtra(EXTRA_CURRENT_MEDIA_ITEM_INDEX, player.currentMediaItemIndex)
+        intent.putExtra(EXTRA_CURRENT_MEDIA_ITEM_INDEX, currentPlaylistItemIndex)
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
     }
 
